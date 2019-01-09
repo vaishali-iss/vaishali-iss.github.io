@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title><![CDATA[Tech.Semicolon]]></title>
+    <link href="/blog/categories/features.xml" rel="self"/>
+    <link href="/"/>
+    <updated>2019-01-09T16:59:49+00:00</updated>
+    <id>/</id>
+        <generator uri="http://sculpin.io/">Sculpin</generator>
+            <entry>
+            <title type="html"><![CDATA[Mysql tips for shell client]]></title>
+            <link href="/blog/2018/01/06/mysql-tips-for-local-shell-client/"/>
+            <updated>2018-01-06T00:00:00+00:00</updated>
+            <id>/blog/2018/01/06/mysql-tips-for-local-shell-client/</id>
+            <content type="html"><![CDATA[<p>How many of you use terminal when operating mysql instead of a GUI client like sequel pro or mysql workbench? There is nothing bad in using either of it as it depends on your choice of comfort.</p>
+
+<p>I like to use terminal for it. Here are few tips which you might find helpful. These are not relelated to how you use mysql database in general, these are specific to the option files and mysql terminal client.</p>
+
+<p>Before diving into it, just make sure you know where your mysql option file my.cnf is place. Server may have multiple my.cnf files. How mysql prioritizes them can be seen by typing :</p>
+
+<pre><code class="bash">mysql --help | grep my.cnf
+</code></pre>
+
+<p><img src="/images/posts/mysql-tips-local-client/1.png" alt="Mysql cnf preference" title="" height="150px" /></p>
+
+<p>This will give you a fair idea of how mysql is prioritizing these option files. I would suggest to have the option file .my.cnf for each user inside their home directory, which has specific options not revealing anything secretive for all mysql users. Again when I say each user, it is NOT mysql's user but the user you are logged into the shell terminal.</p>
+
+<ol>
+<li>Having a nice prompt is always great :</li>
+</ol>
+
+<p>When you login to mysql client, you will see basic promt like below, nothing fancy. However, wouldn't it be great to know what user you have logged in as and which database you are currently in? You can add following in .my.cnf :</p>
+
+<pre><code class="bash">[mysql]
+
+prompt=(\U):[\d]$\_
+</code></pre>
+
+<p><img src="/images/posts/mysql-tips-local-client/2.png" alt="Mysql shell prompt" /></p>
+
+<p>This will give you a handy promt to always keep an eye.</p>
+
+<ol start="2">
+<li>Setting up default database &amp; credentials :</li>
+</ol>
+
+<p>It is not good to always write mysql -u user -p database.. when you can have that set to defaults you use everytime. You can add following in .my.cnf :</p>
+
+<pre><code class="bash">[client]
+
+user=mysqluser
+password=mysqlpassword
+
+[mysql]
+
+prompt=(\U):[\d]$\_
+database=databasename
+</code></pre>
+
+<p>Now you can just type mysql and you are good to go</p>
+
+<ol start="3">
+<li>Colorized output :</li>
+</ol>
+
+<p>Usual output of mysql shell client is in white which becomes confusing when you have multiple columns, text of the row proceeds to next row. I feel this colour-mysql-console is very handy :</p>
+
+<p>Url : https://github.com/nitso/colour-mysql-console</p>
+
+<p>Once you follow the steps for installtion, you will see following :</p>
+
+<p><img src="/images/posts/mysql-tips-local-client/4.png" alt="Mysql colorized output" title="" height="150px" /></p>
+
+<p>There are few options which you can use not in option file but directly while starting mysql shell client. These can be used as and when needed.</p>
+
+<ol start="4">
+<li>Saving the query result in file :</li>
+</ol>
+
+<p>Sometimes you might need to query something and then study those results later or maybe share it with a colleage etc. You can use the <code>tee</code> option :</p>
+
+<pre><code class="bash">mysql --tee="/filepath/output.txt"
+</code></pre>
+
+<p>MySQL client will acknowledge this by saying : Logging to file '/filepath/output.txt'. Now each query's result will be stored in this file which is very handy.</p>
+
+<p>You can use <code>notee</code> command if you want to disable a particular query result to be pushed into the output file.</p>
+
+<ol start="5">
+<li>Saving the result in HTML table format :</li>
+</ol>
+
+<p>This can be one of the cases but if you in case need to show a query result somewhere in pure table format, you can just use the <code>html</code> option :</p>
+
+<pre><code class="bash">mysql --html
+</code></pre>
+
+<p><img src="/images/posts/mysql-tips-local-client/5.png" alt="Mysql HTML table result" /></p>
+
+<p>Now you will see each query gives result in table, which you can easily put into your HTML page. Now this scenario may never likely come, but when it comes this will be a very quick option for you.</p>
+
+<p>I use these on every local setup and it helps me very much in daily development activities. Hope you find it helpful.</p>
+]]></content>
+        </entry>
+    </feed>

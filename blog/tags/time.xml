@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title><![CDATA[Tech.Semicolon]]></title>
+    <link href="/blog/tags/time.xml" rel="self"/>
+    <link href="/"/>
+    <updated>2019-01-06T08:03:50+00:00</updated>
+    <id>/</id>
+        <generator uri="http://sculpin.io/">Sculpin</generator>
+            <entry>
+            <title type="html"><![CDATA[Laravel Module Pattern]]></title>
+            <link href="/blog/2020/01/07/laravel-module-pattern/"/>
+            <updated>2020-01-07T00:00:00+00:00</updated>
+            <id>/blog/2020/01/07/laravel-module-pattern/</id>
+            <content type="html"><![CDATA[<p><img src="https://www.valuecoders.com/blog/wp-content/uploads/2018/05/laravel.jpg" alt="Image of Laravel" /></p>
+
+<p>Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.</p>
+
+<p><em>Markdown is cool.</em></p>
+
+<p><strong>So is twig, because it knows this page's name is: Laravel Module Pattern</strong></p>
+]]></content>
+        </entry>
+    </feed>

@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title><![CDATA[Tech.Semicolon]]></title>
+    <link href="/blog/tags/security.xml" rel="self"/>
+    <link href="/"/>
+    <updated>2019-01-09T16:59:49+00:00</updated>
+    <id>/</id>
+        <generator uri="http://sculpin.io/">Sculpin</generator>
+            <entry>
+            <title type="html"><![CDATA[Laravel restricting unfiltered queries]]></title>
+            <link href="/blog/2018/01/07/laravel-restricting-unfiltered-queries/"/>
+            <updated>2018-01-07T00:00:00+00:00</updated>
+            <id>/blog/2018/01/07/laravel-restricting-unfiltered-queries/</id>
+            <content type="html"><![CDATA[<p>Laravel eloquent is a very powerful ORM. I came across a situation for a project of mine long time ago. There was a table <code>api_logs</code> which basically logged all API requests and responses. Evidently the table grew exponentially. One of the developers created an analytics module in which he forgot to add a where clause. It queried millions of rows at a time on production. It was a silly mistake but server was overwhelmed and you can imagine the rest of story (I can tell you it is not that good).</p>
+
+<p>I imagined if there was a way to just throw an error if any function queries all rows from a table like <code>api_logs</code>. Two advantages :</p>
+
+<ul>
+<li>Error will be thrown during the development cycle where it's like an eye opener for the developer to make sure he adds filters.</li>
+<li>If the develolper pushed the code to live by mistake, someone requesting the page will get the error page. I will be still having advantage with x% of customers getting an error rather than 100% of customer not using website when memory is exhausted. (If that query was in the header or footer on every page then basically it's over haha!)</li>
+</ul>
+
+<h4 id="implementation-%3A">Implementation :</h4>
+
+<p>Short and simple, nothing fancy. We will just intercept an eloquent model for every query and check if it has a where clause. The best place for that is <code>boot</code> method of the model. I wish laravel has <code>retreiving</code> observer just like <code>created</code>, <code>updated</code> etc, which intercepts the query before it hits the database connection. (I am guessing as observers basically observes the state of a model instance, the state prior to <code>retreiving</code> is ideally an inception step of preparing collection of models/model and not yet a prime state to observe. And hence no such observer yet available.)</p>
+
+<p>We can however use <code>\DB::listen()</code> listener as follows :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+
+class ApiLog extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        \DB::listen(function($query) {
+            //
+        }); 
+    }
+}
+</code></pre>
+
+<p>Note that for Laravel version <code>5.1</code> and lower, the parameters of listen callback are <code>$sql, $bindings, $time</code> instead of just <code>$query</code>;</p>
+
+<p>Now we have an listener, we need to get the query and check if it is selecting all rows. We will do it by regex on the raw sql.</p>
+
+<pre><code class="php">&lt;?php
+
+    \DB::listen(function($query) {
+
+        $table = (new self)-&gt;table;
+        $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+        if(preg_match($pattern, $query-&gt;sql)){
+            throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+        }
+    }); 
+}
+</code></pre>
+
+<p>Above preg match will catch all queries which do not have any clauses after the table syntax. Those can be select, update or delete queries.</p>
+
+<p>Let's make this little more manageable by creating a trait and then using it in model. Create <code>RestrictsUnfilteredQueries.php</code> :</p>
+
+<pre><code class="php">&lt;?php 
+
+namespace App\Model;
+
+trait RestrictsUnfilteredQueries
+{
+    /**
+     * Restrict unfiltered queries
+     * 
+     * @return void
+     * @throws \Exception
+     */
+    public static function restrictUnfilteredQueries()
+    {
+        \DB::listen(function($query) {
+
+            $table = (new self)-&gt;table;
+            $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+            if(preg_match($pattern, $query-&gt;sql)){
+                throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+            }
+        }); 
+    }
+}
+</code></pre>
+
+<p>Using in the model's boot method :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Model\RestrictsUnfilteredQueries;
+
+class ApiLog extends Model
+{
+    use RestrictsUnfilteredQueries;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        self::restrictUnfilteredQueries(); 
+    }
+}
+</code></pre>
+
+<p>And done! Now your server RAM will thank you forever for this ;)</p>
+
+<p>Note that this will not work when you query using DB facade like <code>DB::select()</code> or <code>DB::table()-&gt;get()</code>.</p>
+
+<p>You may alternatively cater this as well by having <code>DB::listen()</code> inside a service provider's boot method. It will listen to all sort of queries. However, it might be too much to listen all queries.</p>
+
+<p>There might be better way of implementing the same, I did it this way considering the urgency of situation. It is still there in project since then and working perfectly.</p>
+]]></content>
+        </entry>
+    </feed>

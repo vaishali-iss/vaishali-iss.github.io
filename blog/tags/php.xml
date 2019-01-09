@@ -1,0 +1,717 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <title><![CDATA[Tech.Semicolon]]></title>
+    <link href="/blog/tags/php.xml" rel="self"/>
+    <link href="/"/>
+    <updated>2019-01-09T16:59:49+00:00</updated>
+    <id>/</id>
+        <generator uri="http://sculpin.io/">Sculpin</generator>
+            <entry>
+            <title type="html"><![CDATA[Laravel Module Pattern]]></title>
+            <link href="/blog/2018/01/09/laravel-module-pattern/"/>
+            <updated>2018-01-09T00:00:00+00:00</updated>
+            <id>/blog/2018/01/09/laravel-module-pattern/</id>
+            <content type="html"><![CDATA[<p>Laravel has a folder structure which ties similar entities of MVC together e.g. controllers in one folder, views into another. There are few set-backs of this approach :</p>
+
+<ul>
+<li>If your project scales exponentially having lot of module, each of these directories scale as well. It becomes difficult to maintain.</li>
+<li>If you want to remove the module entirely, there are files scattered in different folders to consider. This sometimes lead to unused files still present in your project repository.</li>
+<li>Re-using a module into different project is a hassle (unless you have it installed coumpled as a plugin via composer)</li>
+<li>While using code editors, as the module files are in different folders. We might need to expand the folders in project sidebar to view them at a glance. The scattered folder structure makes it difficult to for a quick view. (Forgive me for being picky here ;))</li>
+</ul>
+
+<h4 id="implementation-%3A">Implementation :</h4>
+
+<p>Before you dive in to further sections, if you are familier with basic concepts of larave, most part of the code will be very familier to you. Tt is really easier that you might think.</p>
+
+<ul>
+<li>Creating the module :</li>
+</ul>
+
+<p>Let's create a new folder called <code>Modules</code> in the project root. (You might want to create it inside app folder, I prefer it this way.) To use the <code>\Modules</code> namespace, we need to autoload it from composer.json in the psr-4 section.</p>
+
+<pre><code class="json"> "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Modules\\": "Modules/",
+        }
+    },
+</code></pre>
+
+<p>Let's dump the updated autoloads by doing following from terminal shell :</p>
+
+<pre><code class="bash">composer dump-autoload
+</code></pre>
+
+<p>Now we are good to start with the first module. Let's consider a ticket module where user can submit a ticket from frontend and we store it into the database. We will not focus much on the actual implementation of  the ticketing ystem. We will emphasize on the structure of module.</p>
+
+<ul>
+<li>Create a new directory <code>Ticket</code>.</li>
+</ul>
+
+<p>Create a new directory <code>Ticket</code> inside <code>Modules</code> folder. I like to keep module names singular (Ticket instead of Tickets).</p>
+
+<ul>
+<li>Creating a service provider class :</li>
+</ul>
+
+<p>On a broader level, frameworks like laravel have special entry point wrappers which can find, register and instantiate the core functionalities. In case of Laravel it's the ServiceProvider class.</p>
+
+<p>Create a new file <code>TicketServiceProvider.php</code> inside <code>Modules/Ticket</code>.</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot() {}
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<p>To make sure laravel considers this while booting up, we need to register it. Add this inside <code>config/app.php</code>'s  <code>providers</code> array :</p>
+
+<pre><code class="php">App\Modules\Ticket\TicketServiceProvider::class,
+</code></pre>
+
+<ul>
+<li>Creating migrations :</li>
+</ul>
+
+<p>We need to create a table to store new ticket data. Create a folder <code>Migrations</code> inside <code>Modules/Ticket</code>. 
+Now we can create a new migration from terminal shell :</p>
+
+<pre><code class="bash">php artisan make:migration create_tickets_table --path=Modules/Ticket/Migrations
+</code></pre>
+
+<p>It will create a new migration class inside <code>Modules/Ticket/Migrations</code> path. Let's add the table script :</p>
+
+<pre><code class="php">&lt;?php
+
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Database\Migrations\Migration;
+
+class CreateTicketsTable extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('tickets', function (Blueprint $table) {
+            $table-&gt;increments('id');
+            $table-&gt;string('title')-&gt;nullable();
+            $table-&gt;text('body')-&gt;nullable();
+            $table-&gt;boolean('is_closed')-&gt;default(0);
+            $table-&gt;timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::dropIfExists('tickets');
+    }
+}
+</code></pre>
+
+<p>However, you must have noticed that this is not coming from Laravel's default <code>database/migrations</code> folder. We need to inform laravel to load this file as well for running migration. It can be done from service provider by adding following in boot method.</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot() {
+
+        // Load ticket module migrations from 
+        // `Modules/Ticket/Migrations` folder path
+        $this-&gt;loadMigrationsFrom(__DIR__.'/Migrations');
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<p>Now to run the migration from terminal shell :</p>
+
+<pre><code class="bash">php artisan migrate
+</code></pre>
+
+<ul>
+<li>Alternatively:</li>
+</ul>
+
+<p>If you are thinking <code>migrations are done very rarely, so why should we register it in service provider for a registration overhead?</code> Laravel has got you covered.</p>
+
+<p>You can skip the step of doing <code>loadMigrationsFrom()</code> in service provider class. Instead you can specify the path while running migrations :</p>
+
+<pre><code class="bash">php artisan migrate --path=Modules/Ticket/Migrations
+</code></pre>
+
+<p>If your project has CICD deployments, mostly it will just have the migrate command without the path option. The first method is preferable to keep it simple for deployments.</p>
+
+<ul>
+<li>Creating Model :</li>
+</ul>
+
+<p>Create a file <code>Ticket.php</code> inside <code>Modules/Ticket</code>. (You may create a <code>Models</code> folder inside <code>Modules/Ticket</code> and create model class inside it as per your preference.)</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Modules\Ticket;
+
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+
+class Ticket extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'tickets';
+
+    /**
+     * The attributes that are mass assignable.
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'title',
+        'body',
+        'is_closed'
+    ];
+
+}
+</code></pre>
+
+<ul>
+<li>Creating Controller :</li>
+</ul>
+
+<p>Create a new directory inside <code>Modules/Ticket</code> called <code>Http</code>. Let's create <code>TicketController.php</code> inside it :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket\Http;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use Modules\Ticket\Ticket;
+
+class TicketController extends Controller
+{
+    /**
+     * Display a form for the resource.
+     *
+     * @return \Illuminate\Http\Response
+     */
+    public function create()
+    {
+        return view('tickets.create');
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  Request  $request
+     * @param  UserRepository $users
+     * 
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        $request-&gt;validate([
+            'title' =&gt; 'string|required|max:255',
+            'body'  =&gt; 'string|required'
+        ]);
+
+        // Create new ticket
+        $ticket = Ticket::create($request-&gt;only('title', 'body'));
+
+        return redirect()-&gt;route('ticket.new')-&gt;withSuccess('Thank you for raising a ticket. We will get back to you at the earliest.');
+    }
+}
+</code></pre>
+
+<ul>
+<li>Creating Routes :</li>
+</ul>
+
+<p>Create a new file called <code>TicketRoutes.php</code> inside <code>Modules/Ticket</code>.</p>
+
+<pre><code class="php">&lt;?php 
+
+Route::group(['namespace' =&gt; 'Modules\Ticket', 'middleware' =&gt; ['web', 'auth']], function () {
+
+    Route::get('ticket/new', [ 'as' =&gt; 'ticket.new', 'uses' =&gt; 'TicketController@create' ]);
+    Route::post('ticket/store', [ 'as' =&gt; 'ticket.store', 'uses' =&gt; 'TicketController@store' ]);
+});
+</code></pre>
+
+<p>We need to tell laravel to register these routes as those are coming from a custom folder. We can do that from service provider :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot() {
+
+        // Load ticket module migrations from 
+        // `Modules/Ticket/Migrations` folder path
+        $this-&gt;loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Load routes
+        $this-&gt;loadRoutesFrom(__DIR__.'/TickerRoutes.php');
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<ul>
+<li>Creating Views :</li>
+</ul>
+
+<p>Create a new directory inside <code>Modules/Ticket</code> called <code>Views</code>. This will contain al views for our module. This is again not coming from Laravel's default <code>resources/views</code> folder. We need to tell laravel to load these views. It can be done from service provider by adding following in boot method.</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot() {
+
+        // Load ticket module migrations from 
+        // `Modules/Ticket/Migrations`
+        $this-&gt;loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Load routes from `Modules/Ticket/TickerRoutes.php`
+        $this-&gt;loadRoutesFrom(__DIR__.'/TickerRoutes.php');
+
+        // Load views from `Modules/Ticket/Views`
+        $this-&gt;loadViewsFrom(__DIR__.'/Views', 'ticket');
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<p>Note : Sometimes you may see <code>loadViewsFrom()</code> called without the second argument which is the package name. The difference is if you want to render a view without a package name you do <code>ticket.create</code> (file path : <code>Modules/Ticket/Views/ticket/create.blade.php</code>. If you specify package name, you do <code>ticket::create</code> (file path : <code>Modules/Ticket/Views/create.blade.php</code>)</p>
+
+<p>Let's create a simple view <code>create.blade.php</code> which basically has a form :</p>
+
+<p></p>
+
+<pre><code>@extends('layouts.app')
+
+@section('content')
+    &lt;div class="panel panel-default"&gt;
+        &lt;div class="panel-body"&gt;
+            &lt;div class="col-md-4 col-md-offset-4"&gt;
+                &lt;form role="form" method="POST" action="{{ route('ticket.store') }}"&gt;
+                    @csrf
+                    &lt;div class="form-group"&gt;
+                        &lt;label&gt;Title *&lt;/label&gt;
+                        &lt;input class="form-control" placeholder="Title for your ticket" id="title" name="title"&gt;
+                        @if ($errors-&gt;has('title'))
+                            &lt;span class="invalid-feedback" role="alert"&gt;
+                                &lt;strong&gt;{{ $errors-&gt;first('title') }}&lt;/strong&gt;
+                            &lt;/span&gt;
+                        @endif
+                    &lt;/div&gt;
+                    &lt;div class="form-group"&gt;
+                        &lt;label&gt;Description *&lt;/label&gt;
+                        &lt;textarea class="form-control" placeholder="How can we assist you?" id="body" name="body"&gt;&lt;/textarea&gt;
+                        @if ($errors-&gt;has('body'))
+                            &lt;span class="invalid-feedback" role="alert"&gt;
+                                &lt;strong&gt;{{ $errors-&gt;first('body') }}&lt;/strong&gt;
+                            &lt;/span&gt;
+                        @endif
+                    &lt;/div&gt;
+                    &lt;button type="submit" class="btn btn-primary"&gt;Submit Ticket&lt;/button&gt;
+                &lt;/form&gt;
+            &lt;/div&gt;
+        &lt;/div&gt;
+    &lt;/div&gt;
+@endsection
+</code></pre>
+
+<p></p>
+
+<ul>
+<li>Creating Policies :</li>
+</ul>
+
+<p>If you would like to use policy to authorize the requests, create a file <code>TicketPolicy.php</code> inside <code>Modules/Ticket</code>.</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Modules;
+
+use App\User;
+
+
+class TicketPolicy
+{
+
+    /**
+     * Determines user access
+     *
+     * @param User $user
+     * @return bool
+     */
+    public function index($user)
+    {
+        return true;
+    }
+
+    /**
+     * Determines user access
+     *
+     * @param User $user
+     * @return bool
+     */
+    public function store($user)
+    {
+        return true;
+    }
+}
+</code></pre>
+
+<p>As you must have thought by now, we need to register the policy using the laravel Gate contract inside service provider :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Modules\Ticket\Ticket.php;
+use Modules\Ticket\TicketPolicy.php;
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot(GateContract $gate) {
+
+        // Load ticket module migrations from 
+        // `Modules/Ticket/Migrations`
+        $this-&gt;loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Load routes from `Modules/Ticket/TickerRoutes.php`
+        $this-&gt;loadRoutesFrom(__DIR__.'/TickerRoutes.php');
+
+        // Load views from `Modules/Ticket/Views`
+        $this-&gt;loadViewsFrom(__DIR__.'/Views', 'ticket');
+
+        // Load the policies from `Modules/Ticket/TicketPolicy.php`
+        $gate-&gt;policy(Ticket::class, TicketPolicy::class);
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<ul>
+<li>Creating config files :</li>
+</ul>
+
+<p>We can have config files to access environmental variables specific for this module. For example in this ticket module let's say we need to configure an email to cc to. Create a file <code>TicketConfig.php</code> inside inside <code>Modules/Ticket</code>.</p>
+
+<pre><code class="php">&lt;?php
+
+return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email to cc for submitted tickets
+    |--------------------------------------------------------------------------
+    |
+    | Type : string
+    |
+    */
+
+    'ticket_cc_email' =&gt; env('TICKET_CC_EMAIL', null),
+
+];
+</code></pre>
+
+<p>Now, let's register this inside service provider.</p>
+
+<pre><code class="php">&lt;?php
+
+namespace Modules\Ticket;
+
+use Modules\Ticket\Ticket.php;
+use Modules\Ticket\TicketPolicy.php;
+use Illuminate\Contracts\Auth\Access\Gate as GateContract;
+use Illuminate\Support\ServiceProvider as BaseServiceProvider;
+
+class TicketServiceProvider extends BaseServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot(GateContract $gate) {
+
+        // Load ticket module migrations from 
+        // `Modules/Ticket/Migrations`
+        $this-&gt;loadMigrationsFrom(__DIR__.'/Migrations');
+
+        // Load routes from `Modules/Ticket/TickerRoutes.php`
+        $this-&gt;loadRoutesFrom(__DIR__.'/TickerRoutes.php');
+
+        // Load views from `Modules/Ticket/Views`
+        $this-&gt;loadViewsFrom(__DIR__.'/Views', 'ticket');
+
+        // Load the policies from `Modules/Ticket/TicketPolicy.php`
+        $gate-&gt;policy(Ticket::class, TicketPolicy::class);
+
+        // Load the configurations from `Modules/Ticket/TicketConfig.php`
+        $this-&gt;mergeConfigFrom(
+            __DIR__.'/TicketConfig.php', 'ticket';
+        );
+    }
+
+    /**
+     * Register any application services.
+     *
+     * @return void
+     */
+    public function register() {}
+}
+</code></pre>
+
+<p>We can then access the configurations as :</p>
+
+<pre><code class="php">$ccEmail = config('ticket.ticket_cc_email');
+</code></pre>
+
+<p>Now you can see entire module is bundled to a single folder. Easy to manage. There is a downside of registrations inside service provider class which in general you do not worry about. However, this is structurally more intuitive and re-usable.</p>
+
+<p>If you would like your module to have more extensive and detailed structure, you can simply use this ready composer plugin : <a href="https://nwidart.com/laravel-modules/v4/introduction">nwidart/laravel-modules</a></p>
+
+<p>Note : The structure and coding style are my personal opinions. There can be multiple ways to accomplish the same result. I feel just knowing the possibility that it can be done, opens new doors of imaginations based on personal comfort.</p>
+]]></content>
+        </entry>
+            <entry>
+            <title type="html"><![CDATA[Laravel restricting unfiltered queries]]></title>
+            <link href="/blog/2018/01/07/laravel-restricting-unfiltered-queries/"/>
+            <updated>2018-01-07T00:00:00+00:00</updated>
+            <id>/blog/2018/01/07/laravel-restricting-unfiltered-queries/</id>
+            <content type="html"><![CDATA[<p>Laravel eloquent is a very powerful ORM. I came across a situation for a project of mine long time ago. There was a table <code>api_logs</code> which basically logged all API requests and responses. Evidently the table grew exponentially. One of the developers created an analytics module in which he forgot to add a where clause. It queried millions of rows at a time on production. It was a silly mistake but server was overwhelmed and you can imagine the rest of story (I can tell you it is not that good).</p>
+
+<p>I imagined if there was a way to just throw an error if any function queries all rows from a table like <code>api_logs</code>. Two advantages :</p>
+
+<ul>
+<li>Error will be thrown during the development cycle where it's like an eye opener for the developer to make sure he adds filters.</li>
+<li>If the develolper pushed the code to live by mistake, someone requesting the page will get the error page. I will be still having advantage with x% of customers getting an error rather than 100% of customer not using website when memory is exhausted. (If that query was in the header or footer on every page then basically it's over haha!)</li>
+</ul>
+
+<h4 id="implementation-%3A">Implementation :</h4>
+
+<p>Short and simple, nothing fancy. We will just intercept an eloquent model for every query and check if it has a where clause. The best place for that is <code>boot</code> method of the model. I wish laravel has <code>retreiving</code> observer just like <code>created</code>, <code>updated</code> etc, which intercepts the query before it hits the database connection. (I am guessing as observers basically observes the state of a model instance, the state prior to <code>retreiving</code> is ideally an inception step of preparing collection of models/model and not yet a prime state to observe. And hence no such observer yet available.)</p>
+
+<p>We can however use <code>\DB::listen()</code> listener as follows :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+
+class ApiLog extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        \DB::listen(function($query) {
+            //
+        }); 
+    }
+}
+</code></pre>
+
+<p>Note that for Laravel version <code>5.1</code> and lower, the parameters of listen callback are <code>$sql, $bindings, $time</code> instead of just <code>$query</code>;</p>
+
+<p>Now we have an listener, we need to get the query and check if it is selecting all rows. We will do it by regex on the raw sql.</p>
+
+<pre><code class="php">&lt;?php
+
+    \DB::listen(function($query) {
+
+        $table = (new self)-&gt;table;
+        $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+        if(preg_match($pattern, $query-&gt;sql)){
+            throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+        }
+    }); 
+}
+</code></pre>
+
+<p>Above preg match will catch all queries which do not have any clauses after the table syntax. Those can be select, update or delete queries.</p>
+
+<p>Let's make this little more manageable by creating a trait and then using it in model. Create <code>RestrictsUnfilteredQueries.php</code> :</p>
+
+<pre><code class="php">&lt;?php 
+
+namespace App\Model;
+
+trait RestrictsUnfilteredQueries
+{
+    /**
+     * Restrict unfiltered queries
+     * 
+     * @return void
+     * @throws \Exception
+     */
+    public static function restrictUnfilteredQueries()
+    {
+        \DB::listen(function($query) {
+
+            $table = (new self)-&gt;table;
+            $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+            if(preg_match($pattern, $query-&gt;sql)){
+                throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+            }
+        }); 
+    }
+}
+</code></pre>
+
+<p>Using in the model's boot method :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Model\RestrictsUnfilteredQueries;
+
+class ApiLog extends Model
+{
+    use RestrictsUnfilteredQueries;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        self::restrictUnfilteredQueries(); 
+    }
+}
+</code></pre>
+
+<p>And done! Now your server RAM will thank you forever for this ;)</p>
+
+<p>Note that this will not work when you query using DB facade like <code>DB::select()</code> or <code>DB::table()-&gt;get()</code>.</p>
+
+<p>You may alternatively cater this as well by having <code>DB::listen()</code> inside a service provider's boot method. It will listen to all sort of queries. However, it might be too much to listen all queries.</p>
+
+<p>There might be better way of implementing the same, I did it this way considering the urgency of situation. It is still there in project since then and working perfectly.</p>
+]]></content>
+        </entry>
+    </feed>

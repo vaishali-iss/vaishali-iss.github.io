@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+    <head lang="en">
+        <title>Laravel restricting unfiltered queries &mdash; Tech.Semicolon &mdash; By Mihir Bhende</title>
+        <meta charset="utf-8">
+        <meta name="theme-color" content="#ffffff">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+            <meta name="robots" content="index, follow">
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans:300i,400,400i,600,600i,700,800|Yanone+Kaffeesatz:200,300,400,700" rel="stylesheet">
+        <link href="/components/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css" />
+        <link href="/css/style.css" rel="stylesheet" type="text/css" />
+
+        <link rel="apple-touch-startup-image" href="/images/jackson/2048x2048.png">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="shortcut icon" sizes="76x76" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="120x120" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="128x128" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="152x152" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="196x196" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="512x512" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="1024x1024" href="/images/fav.png">
+        <link rel="shortcut icon" sizes="2048x2048" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="76x76" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="120x120" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="128x128" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="152x152" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="196x196" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="512x512" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="1024x1024" href="/images/fav.png">
+        <link rel="apple-touch-icon" sizes="2048x2048" href="/images/fav.png">
+
+        <link rel="stylesheet" href="/components/highlightjs/styles/github.css" />
+        <link rel="alternate" type="application/atom+xml" href="/atom.xml" title="Tech.Semicolon activity feed" />
+                                    </head>
+    <body>
+        <header>
+            <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-header">
+                <div class="container">
+                    <a class="navbar-brand" href="/">
+                        <img src="/images/logo.png" class="logo-img"/>
+                    </a>
+                    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarCollapse">
+                        <ul class="navbar-nav mr-auto">
+                            <li class="nav-item"><a class="nav-link" href="/blog">Posts Archive</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/blog/categories">Categories</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/blog/tags">Tags</a></li>
+                            <li class="nav-item"><a target="_blank" class="nav-link" href="https://github.com/techsemicolon">GitHub</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/about">About</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </nav>
+        </header>
+        <main role="main" class="container">
+            <div class="row">
+                <div class="col-sm-12">
+                        <article>
+        <header>
+            <h2>Laravel restricting unfiltered queries</h2>
+        </header>
+        <div>
+            <p>Laravel eloquent is a very powerful ORM. I came across a situation for a project of mine long time ago. There was a table <code>api_logs</code> which basically logged all API requests and responses. Evidently the table grew exponentially. One of the developers created an analytics module in which he forgot to add a where clause. It queried millions of rows at a time on production. It was a silly mistake but server was overwhelmed and you can imagine the rest of story (I can tell you it is not that good).</p>
+
+<p>I imagined if there was a way to just throw an error if any function queries all rows from a table like <code>api_logs</code>. Two advantages :</p>
+
+<ul>
+<li>Error will be thrown during the development cycle where it's like an eye opener for the developer to make sure he adds filters.</li>
+<li>If the develolper pushed the code to live by mistake, someone requesting the page will get the error page. I will be still having advantage with x% of customers getting an error rather than 100% of customer not using website when memory is exhausted. (If that query was in the header or footer on every page then basically it's over haha!)</li>
+</ul>
+
+<h4 id="implementation-%3A">Implementation :</h4>
+
+<p>Short and simple, nothing fancy. We will just intercept an eloquent model for every query and check if it has a where clause. The best place for that is <code>boot</code> method of the model. I wish laravel has <code>retreiving</code> observer just like <code>created</code>, <code>updated</code> etc, which intercepts the query before it hits the database connection. (I am guessing as observers basically observes the state of a model instance, the state prior to <code>retreiving</code> is ideally an inception step of preparing collection of models/model and not yet a prime state to observe. And hence no such observer yet available.)</p>
+
+<p>We can however use <code>\DB::listen()</code> listener as follows :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+
+class ApiLog extends Model
+{
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        \DB::listen(function($query) {
+            //
+        }); 
+    }
+}
+</code></pre>
+
+<p>Note that for Laravel version <code>5.1</code> and lower, the parameters of listen callback are <code>$sql, $bindings, $time</code> instead of just <code>$query</code>;</p>
+
+<p>Now we have an listener, we need to get the query and check if it is selecting all rows. We will do it by regex on the raw sql.</p>
+
+<pre><code class="php">&lt;?php
+
+    \DB::listen(function($query) {
+
+        $table = (new self)-&gt;table;
+        $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+        if(preg_match($pattern, $query-&gt;sql)){
+            throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+        }
+    }); 
+}
+</code></pre>
+
+<p>Above preg match will catch all queries which do not have any clauses after the table syntax. Those can be select, update or delete queries.</p>
+
+<p>Let's make this little more manageable by creating a trait and then using it in model. Create <code>RestrictsUnfilteredQueries.php</code> :</p>
+
+<pre><code class="php">&lt;?php 
+
+namespace App\Model;
+
+trait RestrictsUnfilteredQueries
+{
+    /**
+     * Restrict unfiltered queries
+     * 
+     * @return void
+     * @throws \Exception
+     */
+    public static function restrictUnfilteredQueries()
+    {
+        \DB::listen(function($query) {
+
+            $table = (new self)-&gt;table;
+            $pattern = "/from(\s)*?`?$table`?(\s)*$/m";
+
+            if(preg_match($pattern, $query-&gt;sql)){
+                throw new \Exception("Error : Running unfiltered queries on `$table` table is not allowed!");
+            }
+        }); 
+    }
+}
+</code></pre>
+
+<p>Using in the model's boot method :</p>
+
+<pre><code class="php">&lt;?php
+
+namespace App\Model;
+
+use Illuminate\Database\Eloquent\Model;
+use App\Model\RestrictsUnfilteredQueries;
+
+class ApiLog extends Model
+{
+    use RestrictsUnfilteredQueries;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'api_logs';
+
+
+    /**
+     * The "booting" method of the model.
+     *
+     * @return void
+     */
+    public static function boot(){
+
+        parent::boot();
+
+        self::restrictUnfilteredQueries(); 
+    }
+}
+</code></pre>
+
+<p>And done! Now your server RAM will thank you forever for this ;)</p>
+
+<p>Note that this will not work when you query using DB facade like <code>DB::select()</code> or <code>DB::table()-&gt;get()</code>.</p>
+
+<p>You may alternatively cater this as well by having <code>DB::listen()</code> inside a service provider's boot method. It will listen to all sort of queries. However, it might be too much to listen all queries.</p>
+
+<p>There might be better way of implementing the same, I did it this way considering the urgency of situation. It is still there in project since then and working perfectly.</p>
+
+        </div>
+        <div class="cat-tags">
+            <span class="tags col-md-6">By : Mihir Bhende</span>
+                            <span class="categories col-md-6">
+                Categories : 
+                                <a href="/blog/categories/laravel">laravel</a>,                                 <a href="/blog/categories/php">php</a>                                </span>
+                                        <span class="tags col-md-6">
+                Tags : 
+                                <a href="/blog/tags/laravel">laravel</a>,                                 <a href="/blog/tags/php">php</a>,                                 <a href="/blog/tags/security">security</a>,                                 <a href="/blog/tags/slowloading">slowloading</a>                                </span>
+                    </div>
+
+        
+    </article>
+
+
+
+                </div>
+            </div>
+        </main>
+        <footer class="container">
+            <span>Tech.Semicolon | &copy; 2019 </span>
+        </footer>
+
+        <script src="/components/jquery/jquery.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+        <script src="/components/bootstrap/js/bootstrap.min.js"></script>
+                
+                <script src="/components/highlightjs/highlight.pack.js"></script>
+        <script>hljs.initHighlightingOnLoad();</script>
+
+                    </body>
+</html>
